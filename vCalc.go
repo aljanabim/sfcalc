@@ -15,15 +15,20 @@ type scalarField struct {
 	precision  float64
 }
 
+type vectorField struct {
+	expressionCoord1 string
+	expressionCoord2 string
+	expressionCoord3 string
+	point            []float64
+	coordsys         string
+	precision        float64
+}
+
 // Returns a new scalar field
-func NewScalarField(expression string, point []float64, h float64) scalarField {
+func NewScalarField(expression string) scalarField {
 	v := scalarField{}
 	v.expression = expression
-	v.precision = h
-	if len(point) < 3 || len(point) > 3 {
-		panic("Too many or too few points coordinates given")
-	}
-	v.point = point
+	v.precision = 0.001
 	v.setCoordinateSystem()
 	return v
 }
@@ -224,38 +229,41 @@ func getFUNC(FUNC string, arg float64) float64 {
 
 // Calculates the gradient of scalarField
 // Returns a slice of float64 containg the calculated gradient
-func (v scalarField) grad() []float64 {
-	h := v.precision
-	switch v.coordsys {
+func (s scalarField) grad(c []float64) []float64 {
+	if len(c) < 3 || len(c) > 3 {
+		panic("Too many or too few points coordinates given")
+	}
+	h := s.precision
+	switch s.coordsys {
 	case "cartesian":
-		x := v.point[0]
-		y := v.point[1]
-		z := v.point[2]
+		x := c[0]
+		y := c[1]
+		z := c[2]
 
 		return []float64{
-			(fn(x+h, y, z, v.expression, v.coordsys) - fn(x-h, y, z, v.expression, v.coordsys)) / (2 * h),
-			(fn(x, y+h, z, v.expression, v.coordsys) - fn(x, y-h, z, v.expression, v.coordsys)) / (2 * h),
-			(fn(x, y, z+h, v.expression, v.coordsys) - fn(x, y, z-h, v.expression, v.coordsys)) / (2 * h)}
+			(fn(x+h, y, z, s.expression, s.coordsys) - fn(x-h, y, z, s.expression, s.coordsys)) / (2 * h),
+			(fn(x, y+h, z, s.expression, s.coordsys) - fn(x, y-h, z, s.expression, s.coordsys)) / (2 * h),
+			(fn(x, y, z+h, s.expression, s.coordsys) - fn(x, y, z-h, s.expression, s.coordsys)) / (2 * h)}
 
 	case "cylinder":
-		r := v.point[0]
-		phi := v.point[1]
-		z := v.point[2]
+		r := c[0]
+		phi := c[1]
+		z := c[2]
 
 		return []float64{
-			(fn(r+h, phi, z, v.expression, v.coordsys) - fn(r-h, phi, z, v.expression, v.coordsys)) / (2 * h),
-			(fn(r, phi+h, z, v.expression, v.coordsys) - fn(r, phi-h, z, v.expression, v.coordsys)) / (2 * h * r),
-			(fn(r, phi, z+h, v.expression, v.coordsys) - fn(r, phi, z-h, v.expression, v.coordsys)) / (2 * h)}
+			(fn(r+h, phi, z, s.expression, s.coordsys) - fn(r-h, phi, z, s.expression, s.coordsys)) / (2 * h),
+			(fn(r, phi+h, z, s.expression, s.coordsys) - fn(r, phi-h, z, s.expression, s.coordsys)) / (2 * h * r),
+			(fn(r, phi, z+h, s.expression, s.coordsys) - fn(r, phi, z-h, s.expression, s.coordsys)) / (2 * h)}
 
 	case "spherical":
-		r := v.point[0]
-		theta := v.point[1]
-		phi := v.point[2]
+		r := c[0]
+		theta := c[1]
+		phi := c[2]
 
 		return []float64{
-			(fn(r+h, theta, phi, v.expression, v.coordsys) - fn(r-h, theta, phi, v.expression, v.coordsys)) / (2 * h),
-			(fn(r, theta+h, phi, v.expression, v.coordsys) - fn(r, theta-h, phi, v.expression, v.coordsys)) / (2 * h * r),
-			(fn(r, theta, phi+h, v.expression, v.coordsys) - fn(r, theta, phi-h, v.expression, v.coordsys)) / (2 * h * r * math.Sin(theta))}
+			(fn(r+h, theta, phi, s.expression, s.coordsys) - fn(r-h, theta, phi, s.expression, s.coordsys)) / (2 * h),
+			(fn(r, theta+h, phi, s.expression, s.coordsys) - fn(r, theta-h, phi, s.expression, s.coordsys)) / (2 * h * r),
+			(fn(r, theta, phi+h, s.expression, s.coordsys) - fn(r, theta, phi-h, s.expression, s.coordsys)) / (2 * h * r * math.Sin(theta))}
 	}
 	return []float64{}
 }
@@ -271,8 +279,8 @@ func main() {
 	// v := NewScalarField("3y*z+3*x/5cos(y)+z", []float64{3.002, -4, 5}, 0.0001)
 	//fmt.Println(v)          32sin(3x^2)^4
 
-	v := NewScalarField("-3sin(2r^3)^5+phi*theta^2", []float64{1, 1, 1}, 0.0001)
-	fmt.Println(v.grad())‘
+	v := NewScalarField("-3sin(2r^3)^5+phi*theta^2")
+	fmt.Println(v.grad([]float64{1, 1, 1}))
 	fmt.Println(v.coordsys)
 	// h := 0.00001
 	// F := scalarField{"3x+2y+cos(z)", []float64{2, 2, 2}, "cartesian"}
