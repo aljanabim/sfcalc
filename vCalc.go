@@ -1,6 +1,6 @@
 // vcalc by Mustafa Al-Janabi, v0.5.4
 
-package vcalc
+package main
 
 import (
 	"fmt"
@@ -10,20 +10,20 @@ import (
 	"strings"
 )
 
+// A scalar field has a mathematical expression as string and
+// a coordinate system defined as "car" for cartesina, "cyl" for cylinder, "sph" for spherical
 type scalarField struct {
 	expression string
-	point      []float64
 	coordsys   string
-	precision  float64
 }
 
+// A vector field has a mathematical expression for each coordinate in 3-dimensional space and
+// a point in 3-dimensional space, a coordinate system defined as "car" for cartesina, "cyl" for cylinder, "sph" for spherical.
 type vectorField struct {
 	expressionCoord1 string
 	expressionCoord2 string
 	expressionCoord3 string
-	point            []float64
 	coordsys         string
-	precision        float64
 }
 
 // Returns a new scalar field
@@ -31,7 +31,6 @@ func NewScalarField(expression string, coordsys string) scalarField {
 	s := scalarField{}
 	s.expression = expression
 	s.coordsys = coordsys
-	s.precision = 0.0001
 	checkCoords(expression, coordsys)
 	return s
 }
@@ -43,7 +42,6 @@ func NewVectorField(e1, e2, e3, coordsys string) vectorField {
 	v.expressionCoord2 = e2
 	v.expressionCoord3 = e3
 	v.coordsys = coordsys
-	v.precision = 0.0001
 	checkCoords(e1+"+"+e2+"+"+e3, coordsys)
 	return v
 }
@@ -69,7 +67,10 @@ func checkCoords(expression string, coordsys string) {
 			regexp.MustCompile(`z`).MatchString(expression) {
 			panic("Insufficient coordinate names given, the following coordinate names are allowed together: (x,y,z) for cartesian coordinates, (r,phi,z) for cylinder coordinates and (r,theta,phi) for spherical coordinates")
 		}
+	default:
+		panic("Insufficient coordinate names given, the following coordinate names are allowed together: (x,y,z) for cartesian coordinates, (r,phi,z) for cylinder coordinates and (r,theta,phi) for spherical coordinates")
 	}
+
 }
 
 // Returns the calculation of the expression given the points _1, _2, _3 in coordinate system
@@ -246,12 +247,12 @@ func getFUNC(FUNC string, arg float64) float64 {
 }
 
 // Calculates the gradient of scalarField
-// Returns a slice of float64 containg the calculated gradient
+// Returns a slice of float64 containg the calculated gradient at point c
 func (s scalarField) Grad(c []float64) []float64 {
 	if len(c) < 3 || len(c) > 3 {
 		panic("Too many or too few points coordinates given")
 	}
-	h := s.precision
+	h := 0.0001
 	switch s.coordsys {
 	case "car":
 		x := c[0]
@@ -284,4 +285,56 @@ func (s scalarField) Grad(c []float64) []float64 {
 			(fn(r, theta, phi+h, s.expression, s.coordsys) - fn(r, theta, phi-h, s.expression, s.coordsys)) / (2 * h * r * math.Sin(theta))}
 	}
 	return []float64{}
+}
+
+// Calculates the divergence of vectorField
+// Returns a float64 containg the calculated divergence at point c
+func (s scalarField) Div(c []float64) []float64 {
+	if len(c) < 3 || len(c) > 3 {
+		panic("Too many or too few points coordinates given")
+	}
+	h := 0.0001
+	switch s.coordsys {
+	case "car":
+		x := c[0]
+		y := c[1]
+		z := c[2]
+
+		return []float64{
+			(fn(x+h, y, z, s.expression, s.coordsys) - fn(x-h, y, z, s.expression, s.coordsys)) / (2 * h),
+			(fn(x, y+h, z, s.expression, s.coordsys) - fn(x, y-h, z, s.expression, s.coordsys)) / (2 * h),
+			(fn(x, y, z+h, s.expression, s.coordsys) - fn(x, y, z-h, s.expression, s.coordsys)) / (2 * h)}
+
+	case "cyl":
+		r := c[0]
+		phi := c[1]
+		z := c[2]
+
+		return []float64{
+			(fn(r+h, phi, z, s.expression, s.coordsys) - fn(r-h, phi, z, s.expression, s.coordsys)) / (2 * h),
+			(fn(r, phi+h, z, s.expression, s.coordsys) - fn(r, phi-h, z, s.expression, s.coordsys)) / (2 * h * r),
+			(fn(r, phi, z+h, s.expression, s.coordsys) - fn(r, phi, z-h, s.expression, s.coordsys)) / (2 * h)}
+
+	case "sph":
+		r := c[0]
+		theta := c[1]
+		phi := c[2]
+
+		return []float64{
+			(fn(r+h, theta, phi, s.expression, s.coordsys) - fn(r-h, theta, phi, s.expression, s.coordsys)) / (2 * h),
+			(fn(r, theta+h, phi, s.expression, s.coordsys) - fn(r, theta-h, phi, s.expression, s.coordsys)) / (2 * h * r),
+			(fn(r, theta, phi+h, s.expression, s.coordsys) - fn(r, theta, phi-h, s.expression, s.coordsys)) / (2 * h * r * math.Sin(theta))}
+	}
+	return []float64{}
+}
+
+func main() {
+	s := NewScalarField("-3sin(2r^3)^5+phi*theta^2", "sph")
+	fmt.Println(s)
+	fmt.Println(s.Grad([]float64{1, 1, 1}))
+	fmt.Println(s.coordsys)
+
+	// v := NewVectorField("3x^2", "5cos(y^3*z)", "sqrt(1-y^2)-5z+3")
+	// fmt.Println(v)
+
 }
