@@ -92,16 +92,15 @@ To calculate divergence and rotation you use the methods Div and Rot on a vector
 
 ## Documentation
 
-type scalarField
-* [func NewScalarField(e, c string) scalarField](#type-scalarfield)
-* scalarField)
-* func (s scalarField) Grad(c []float64) []float64
-* func (s scalarField) Grad(c []float64) float64
+[type scalarField](#type-scalarfield)
+* [func NewScalarField(e, c string) scalarField](#func-newscalarfield)
+* [func (s scalarField) Grad(c []float64) []float64](#func-scalarfield-grad)
+* [func (s scalarField) Grad(c []float64) float64](#func-scalarfield-laplacian)
 
-type vectorField
-* func NewVectorField(e1,e2,e3, c string) vectorField
-* func (v vectorField) Div(c []float64) float64
-* func (v vectorField) Rot(c []float64) []float64
+[type vectorField](#type-scalarfield)
+* [func NewVectorField(e1,e2,e3, c string) vectorField](#func-newvectorfield)
+* [func (v vectorField) Div(c []float64) float64](#func-vectorfield-div)
+* [func (v vectorField) Rot(c []float64) []float64](#func-vectorfield-rot)
 
 #### type scalarField
 	type scalarField {
