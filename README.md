@@ -1,30 +1,26 @@
 # vCalc - Go vector Calculus Calculator
 by Mustafa Al-Janabi
 
-### Go package to calculate the following:
+## Go package to calculate the following:
 * Gradient and laplacian of scalar field
 * Divergence and rotation of vector field<br>
 
 
-### Installation
+## Installation
 Once you have [installed Go](https://golang.org/doc/install), run this command
 to install the `vcalc` package:
 
     go get github.com/aljanabim/vcalc
 
-### Usage
+## Usage
 The package is used by defining a new scalar- or a vector field. Definig a field requires a mathematical expression as well as a coordinate system. The gradient or laplacian are then calcualted for scalar fields by entering a point in the assigned coordinates system to the functions Grad and Laplacian respectivly. Using the methods Div and Rot with a point in the assigned coordinate system the divergence and rotation are calculated for a vector field.
 
-#### How to define a scalar field
+* Define a scalar field
+* Calculate gradient and laplacian
+* Define a vector field
+* Calculate divergence and rotation
 
-
-#### How to calculate gradient and laplacian
-
-#### How to define a vector field
-
-#### How to calculate divergence and rotation
-
-### Documentation
+## Documentation
 #### type scalarField
 	type scalarField {
     	// contains the expression, point, coordinate system and precision

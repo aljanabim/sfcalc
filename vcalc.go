@@ -1,6 +1,6 @@
 // vcalc by Mustafa Al-Janabi, v0.5.4
 
-package vclac
+package vcalc
 
 import (
 	"fmt"
@@ -285,19 +285,3 @@ func (s scalarField) Grad(c []float64) []float64 {
 	}
 	return []float64{}
 }
-
-// Calculates the divergence of scalarField
-// Returns float64 containg the calculated divergence
-
-// Calculates the rotation/curl of scalarField
-// Returns float64 containg the calculated rotation
-
-// func main() {
-// 	s := NewScalarField("-3sin(2r^3)^5+phi*theta^2", "sph")
-// 	fmt.Println(s.grad([]float64{1, 1, 1}))
-// 	fmt.Println(s.coordsys)
-
-// 	v := NewVectorField("3x^2", "5cos(y^3*z)", "sqrt(1-y^2)-5z+3", "car")
-// 	fmt.Println(v.coordsys)
-
-// }
