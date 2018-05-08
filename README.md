@@ -1,4 +1,5 @@
 # vCalc - Go vector Calculus Calculator
+by Mustafa Al-Janabi
 
 ### Go package to calculate the following:
 * Gradient and laplacian of scalar field
@@ -9,9 +10,9 @@ By entering a scalar field as a string, a point in the 3D-space and an approxima
 
 ### Installation
 Once you have [installed Go](https://golang.org/doc/install), run this command
-to install the `sfcalc` package:
+to install the `vcalc` package:
 
-    go get github.com/aljanabim/sfcalc
+    go get github.com/aljanabim/vcalc
 
 ### Usage
 
@@ -50,10 +51,6 @@ Div calculates divergence of vector field at given coordinates
 #### func (vectorField) Rot
 	func (v vectorField) Rot(c []float64) []float64
 Rot calculates rotation/curl of vector field at given coordinates
-
-#### func (vectorField) VectorLaplacian
-	func (v vectorField) Rot(c []float64) []float64
-VectorLaplacian calculates the vector laplacian of vector field at given coordinates
 
 ### Exampel
 

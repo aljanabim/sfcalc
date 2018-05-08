@@ -1,3 +1,5 @@
+// vcalc by Mustafa Al-Janabi, v0.5.4
+
 package main
 
 import (
@@ -25,32 +27,48 @@ type vectorField struct {
 }
 
 // Returns a new scalar field
-func NewScalarField(expression string) scalarField {
-	v := scalarField{}
-	v.expression = expression
-	v.precision = 0.001
-	v.setCoordinateSystem()
+func NewScalarField(expression string, coordsys string) scalarField {
+	s := scalarField{}
+	s.expression = expression
+	s.coordsys = coordsys
+	s.precision = 0.0001
+	checkCoords(expression, coordsys)
+	return s
+}
+
+// Returns a new scalar field
+func NewVectorField(e1, e2, e3, coordsys string) vectorField {
+	v := vectorField{}
+	v.expressionCoord1 = e1
+	v.expressionCoord2 = e2
+	v.expressionCoord3 = e3
+	v.coordsys = coordsys
+	v.precision = 0.0001
+	checkCoords(e1+"+"+e2+"+"+e3, coordsys)
 	return v
 }
 
-// Take a mathematical expression as string and return the coordinat system used
-// given the variables used in the expression
-// Returns string with name of the coordinate system used
-func (v *scalarField) setCoordinateSystem() {
-	if regexp.MustCompile(`x[^p]`).MatchString(v.expression) &&
-		regexp.MustCompile(`y`).MatchString(v.expression) &&
-		regexp.MustCompile(`z`).MatchString(v.expression) {
-		v.coordsys = "cartesian"
-	} else if regexp.MustCompile(`[^q]r`).MatchString(v.expression) &&
-		regexp.MustCompile(`phi`).MatchString(v.expression) &&
-		regexp.MustCompile(`z`).MatchString(v.expression) {
-		v.coordsys = "cylinder"
-	} else if regexp.MustCompile(`[^q]r`).MatchString(v.expression) &&
-		regexp.MustCompile(`theta`).MatchString(v.expression) &&
-		regexp.MustCompile(`phi`).MatchString(v.expression) {
-		v.coordsys = "spherical"
-	} else {
-		panic("Insufficient coordinate name given, the following coordinate names are allowed together: (x,y,z) for cartesian coordinates, (r,phi,z) for cylinder coordinates and (r,theta,phi) for spherical coordinates")
+// Checks if user has used right coordinate names, panics if not
+func checkCoords(expression string, coordsys string) {
+	switch coordsys {
+	case "car":
+		if regexp.MustCompile(`[^q]r`).MatchString(expression) ||
+			regexp.MustCompile(`theta`).MatchString(expression) ||
+			regexp.MustCompile(`phi`).MatchString(expression) {
+			panic("Insufficient coordinate names given, the following coordinate names are allowed together: (x,y,z) for cartesian coordinates, (r,phi,z) for cylinder coordinates and (r,theta,phi) for spherical coordinates")
+		}
+	case "cyl":
+		if regexp.MustCompile(`[^q]r`).MatchString(expression) ||
+			regexp.MustCompile(`y`).MatchString(expression) ||
+			regexp.MustCompile(`theta`).MatchString(expression) {
+			panic("Insufficient coordinate names given, the following coordinate names are allowed together: (x,y,z) for cartesian coordinates, (r,phi,z) for cylinder coordinates and (r,theta,phi) for spherical coordinates")
+		}
+	case "sph":
+		if regexp.MustCompile(`x[^p]`).MatchString(expression) ||
+			regexp.MustCompile(`y`).MatchString(expression) ||
+			regexp.MustCompile(`z`).MatchString(expression) {
+			panic("Insufficient coordinate names given, the following coordinate names are allowed together: (x,y,z) for cartesian coordinates, (r,phi,z) for cylinder coordinates and (r,theta,phi) for spherical coordinates")
+		}
 	}
 }
 
@@ -76,7 +94,7 @@ func fn(_1, _2, _3 float64, expression string, coordsys string) float64 {
 		}
 
 	}
-	return res //expressionParser(_1, _2, _3, "-32sin(3x^2)^4", coordsys) - expressionParser(_1, _2, _3, "3y*z", coordsys) + expressionParser(_1, _2, _3, "3x", coordsys)
+	return res
 }
 
 // Takes type rune and returns true if rune has - or + operator
@@ -179,17 +197,17 @@ func getCOORD(_1, _2, _3 float64, COORD string, coordsys string) float64 {
 	var COORD3 string
 
 	switch coordsys { // Get the right name of coordinates given coordinate system
-	case "cartesian":
+	case "car":
 		COORD1 = "x"
 		COORD2 = "y"
 		COORD3 = "z"
 
-	case "cylinder":
+	case "cyl":
 		COORD1 = "r"
 		COORD2 = "phi"
 		COORD3 = "z"
 
-	case "spherical":
+	case "sph":
 		COORD1 = "r"
 		COORD2 = "theta"
 		COORD3 = "phi"
@@ -229,13 +247,13 @@ func getFUNC(FUNC string, arg float64) float64 {
 
 // Calculates the gradient of scalarField
 // Returns a slice of float64 containg the calculated gradient
-func (s scalarField) grad(c []float64) []float64 {
+func (s scalarField) Grad(c []float64) []float64 {
 	if len(c) < 3 || len(c) > 3 {
 		panic("Too many or too few points coordinates given")
 	}
 	h := s.precision
 	switch s.coordsys {
-	case "cartesian":
+	case "car":
 		x := c[0]
 		y := c[1]
 		z := c[2]
@@ -245,7 +263,7 @@ func (s scalarField) grad(c []float64) []float64 {
 			(fn(x, y+h, z, s.expression, s.coordsys) - fn(x, y-h, z, s.expression, s.coordsys)) / (2 * h),
 			(fn(x, y, z+h, s.expression, s.coordsys) - fn(x, y, z-h, s.expression, s.coordsys)) / (2 * h)}
 
-	case "cylinder":
+	case "cyl":
 		r := c[0]
 		phi := c[1]
 		z := c[2]
@@ -255,7 +273,7 @@ func (s scalarField) grad(c []float64) []float64 {
 			(fn(r, phi+h, z, s.expression, s.coordsys) - fn(r, phi-h, z, s.expression, s.coordsys)) / (2 * h * r),
 			(fn(r, phi, z+h, s.expression, s.coordsys) - fn(r, phi, z-h, s.expression, s.coordsys)) / (2 * h)}
 
-	case "spherical":
+	case "sph":
 		r := c[0]
 		theta := c[1]
 		phi := c[2]
@@ -275,16 +293,11 @@ func (s scalarField) grad(c []float64) []float64 {
 // Returns float64 containg the calculated rotation
 
 func main() {
-	// v := NewScalarField("5+7^3+3r+2phi-cos(z)", []float64{3, 4, 5})
-	// v := NewScalarField("3y*z+3*x/5cos(y)+z", []float64{3.002, -4, 5}, 0.0001)
-	//fmt.Println(v)          32sin(3x^2)^4
+	s := NewScalarField("-3sin(2r^3)^5+phi*theta^2", "sph")
+	fmt.Println(s.grad([]float64{1, 1, 1}))
+	fmt.Println(s.coordsys)
 
-	v := NewScalarField("-3sin(2r^3)^5+phi*theta^2")
-	fmt.Println(v.grad([]float64{1, 1, 1}))
+	v := NewVectorField("3x^2", "5cos(y^3*z)", "sqrt(1-y^2)-5z+3", "car")
 	fmt.Println(v.coordsys)
-	// h := 0.00001
-	// F := scalarField{"3x+2y+cos(z)", []float64{2, 2, 2}, "cartesian"}
-	// fmt.Println(F.grad(h))
 
-	//parseExpression(v.point[0], v.point[1], v.point[2], v.expression, v.coordsys)
 }
