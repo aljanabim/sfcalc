@@ -1,6 +1,6 @@
-// vcalc by Mustafa Al-Janabi, v0.5.4
+// vcalc by Mustafa Al-Janabi, v1.0
 
-package main
+package vcalc
 
 import (
 	"fmt"
@@ -56,7 +56,7 @@ func checkCoords(expression string, coordsys string) {
 			panic("Insufficient coordinate names given, the following coordinate names are allowed together: (x,y,z) for cartesian coordinates, (r,phi,z) for cylinder coordinates and (r,theta,phi) for spherical coordinates")
 		}
 	case "cyl":
-		if regexp.MustCompile(`[^q]r`).MatchString(expression) ||
+		if regexp.MustCompile(`x[^p]`).MatchString(expression) ||
 			regexp.MustCompile(`y`).MatchString(expression) ||
 			regexp.MustCompile(`theta`).MatchString(expression) {
 			panic("Insufficient coordinate names given, the following coordinate names are allowed together: (x,y,z) for cartesian coordinates, (r,phi,z) for cylinder coordinates and (r,theta,phi) for spherical coordinates")
@@ -80,7 +80,7 @@ func fn(_1, _2, _3 float64, expression string, coordsys string) float64 {
 
 	// Split "+" and "-" and calculate sub parts containg "*" and "/"
 	partsToCombine := strings.FieldsFunc(expression, fnSplitHelper)
-	OPRList := listOPR(expression, len(partsToCombine)+1)
+	OPRList := listOPR(expression)
 	// firstPart := partsToCombine[0]
 
 	for i, v := range partsToCombine {
@@ -104,6 +104,26 @@ func fnSplitHelper(r rune) bool {
 	return r == '-' || r == '+'
 }
 
+// Returns list of the addition and subtraction operation in the order they appear
+func listOPR(expression string) []string {
+	var OPRList []string
+
+	submatches := mathParser(expression)
+
+	// First element is empety if operator is missing in the beginning
+	if submatches[0][1] == "+" || submatches[0][1] == "-" {
+		OPRList = append(OPRList, submatches[0][1])
+	} else {
+		OPRList = append(OPRList, "")
+	}
+	for i, match := range submatches {
+		if i > 0 && (match[1] == "+" || match[1] == "-") {
+			OPRList = append(OPRList, match[1])
+		}
+	}
+	return OPRList
+}
+
 // Returns a calucaltion of the given term in expression at the points _1, _2, _3 given the coordinate system coordsys
 // This function effectively manages the calculation of multiplication and division in each term in expression
 // It's the used in fn which preforms the addition and subtraction
@@ -120,50 +140,40 @@ func calculateTerm(_1, _2, _3 float64, expression string, coordsys string) float
 	var COORD string
 	var EXPCOORD string
 
-	submatches := mathParser(expression)
+	if expression == "" {
+		term = 0
+	} else {
+		submatches := mathParser(expression)
 
-	for i, match := range submatches {
-		OPR = match[1]
-		COEFFUNC = match[3]
-		FUNC = match[4]
-		COEFCOORD = match[5]
-		COORD = match[6]
-		EXPCOORD = match[7]
-		EXPFUNC = match[8]
+		for i, match := range submatches {
+			OPR = match[1]
+			COEFFUNC = match[2]
+			FUNC = match[3]
+			COEFCOORD = match[4]
+			COORD = match[5]
+			EXPCOORD = match[6]
+			EXPFUNC = match[7]
 
-		arg = getCOEF(COEFCOORD) * math.Pow(getCOORD(_1, _2, _3, COORD, coordsys), getCOEF(EXPCOORD))
+			arg = getCOEF(COEFCOORD) * math.Pow(getCOORD(_1, _2, _3, COORD, coordsys), getCOEF(EXPCOORD))
 
-		if i == 0 && (OPR == "*" || OPR == "/") {
-			term = 1
-		}
+			if i == 0 && (OPR == "*" || OPR == "/") {
+				term = 1
+			} else if OPR == "+" || OPR == "-" {
+				panic("Operator + or - not allowed in this function")
+			}
 
-		// Calculate the term given the operator infront of it
-		switch OPR {
-		case "":
-			term = getCOEF(COEFFUNC) * math.Pow(getFUNC(FUNC, arg), getCOEF(EXPFUNC))
-		case "*":
-			term *= getCOEF(COEFFUNC) * math.Pow(getFUNC(FUNC, arg), getCOEF(EXPFUNC))
-		case "/":
-			term /= getCOEF(COEFFUNC) * math.Pow(getFUNC(FUNC, arg), getCOEF(EXPFUNC))
+			// Calculate the term given the operator infront of it
+			switch OPR {
+			case "":
+				term = getCOEF(COEFFUNC) * math.Pow(getFUNC(FUNC, arg), getCOEF(EXPFUNC))
+			case "*":
+				term *= getCOEF(COEFFUNC) * math.Pow(getFUNC(FUNC, arg), getCOEF(EXPFUNC))
+			case "/":
+				term /= getCOEF(COEFFUNC) * math.Pow(getFUNC(FUNC, arg), getCOEF(EXPFUNC))
+			}
 		}
 	}
-	// fmt.Println(term)
 	return term
-}
-
-// Returns list of the addition and subtraction operation in the order they appear
-func listOPR(expression string, length int) []string {
-	var OPRList []string
-
-	submatches := mathParser(expression)
-
-	OPRList = append(OPRList, submatches[0][1])
-	for i, match := range submatches {
-		if i > 0 && (match[1] == "+" || match[1] == "-") {
-			OPRList = append(OPRList, match[1])
-		}
-	}
-	return OPRList
 }
 
 // Returns a list of strings with submatches of the parsed mathematical expression
@@ -171,7 +181,7 @@ func mathParser(expression string) [][]string {
 	OPRERATIONS := `\+|\-|\*|\/`
 	FUNCTIONS := `sin|cos|exp|sqrt|tan`
 	COORDINATES := `x|y|z|r|phi|theta`
-	REGEXP := `\s?(?P<OPR>` + OPRERATIONS + `)?\s?((?P<COEFFUNC>\d+)?(?P<FUNC>` + FUNCTIONS + `))?\(?(?P<COEFCOORD>\d+)?(?P<COORD>` + COORDINATES + `)?\^?(?P<EXPCOORD>\d+)?\)?\^?(?P<EXPFUNC>\d+)?`
+	REGEXP := `\s?(?P<OPR>` + OPRERATIONS + `)?\s?(?:(?P<COEFFUNC>\d+)?(?P<FUNC>` + FUNCTIONS + `))?\(?(?P<COEFCOORD>\d+)?(?P<COORD>` + COORDINATES + `)?\^?(?P<EXPCOORD>\d+)?\)?\^?(?P<EXPFUNC>\d+)?`
 	re := regexp.MustCompile(REGEXP)
 	submatches := re.FindAllStringSubmatch(expression, -1)
 	return submatches
@@ -241,8 +251,10 @@ func getFUNC(FUNC string, arg float64) float64 {
 		return math.Sqrt(arg)
 	case "tan":
 		return math.Tan(arg)
-	default:
+	case "":
 		return arg
+	default:
+		panic("Error finding function")
 	}
 }
 
@@ -268,73 +280,135 @@ func (s scalarField) Grad(c []float64) []float64 {
 		r := c[0]
 		phi := c[1]
 		z := c[2]
-
-		return []float64{
-			(fn(r+h, phi, z, s.expression, s.coordsys) - fn(r-h, phi, z, s.expression, s.coordsys)) / (2 * h),
-			(fn(r, phi+h, z, s.expression, s.coordsys) - fn(r, phi-h, z, s.expression, s.coordsys)) / (2 * h * r),
-			(fn(r, phi, z+h, s.expression, s.coordsys) - fn(r, phi, z-h, s.expression, s.coordsys)) / (2 * h)}
-
+		if r == 0 {
+			panic("r must be larger than zero")
+		} else {
+			return []float64{
+				(fn(r+h, phi, z, s.expression, s.coordsys) - fn(r-h, phi, z, s.expression, s.coordsys)) / (2 * h),
+				(fn(r, phi+h, z, s.expression, s.coordsys) - fn(r, phi-h, z, s.expression, s.coordsys)) / (2 * h * r),
+				(fn(r, phi, z+h, s.expression, s.coordsys) - fn(r, phi, z-h, s.expression, s.coordsys)) / (2 * h)}
+		}
 	case "sph":
 		r := c[0]
 		theta := c[1]
 		phi := c[2]
-
-		return []float64{
-			(fn(r+h, theta, phi, s.expression, s.coordsys) - fn(r-h, theta, phi, s.expression, s.coordsys)) / (2 * h),
-			(fn(r, theta+h, phi, s.expression, s.coordsys) - fn(r, theta-h, phi, s.expression, s.coordsys)) / (2 * h * r),
-			(fn(r, theta, phi+h, s.expression, s.coordsys) - fn(r, theta, phi-h, s.expression, s.coordsys)) / (2 * h * r * math.Sin(theta))}
+		if r == 0 || math.Sin(theta) == 0 {
+			panic("r must be larger than zero and theta cannot be 0 or pi")
+		} else {
+			return []float64{
+				(fn(r+h, theta, phi, s.expression, s.coordsys) - fn(r-h, theta, phi, s.expression, s.coordsys)) / (2 * h),
+				(fn(r, theta+h, phi, s.expression, s.coordsys) - fn(r, theta-h, phi, s.expression, s.coordsys)) / (2 * h * r),
+				(fn(r, theta, phi+h, s.expression, s.coordsys) - fn(r, theta, phi-h, s.expression, s.coordsys)) / (2 * h * r * math.Sin(theta))}
+		}
+	default:
+		panic("Error finding Grad, coordinates system is wrong")
 	}
-	return []float64{}
+
 }
 
 // Calculates the divergence of vectorField
 // Returns a float64 containg the calculated divergence at point c
-func (s scalarField) Div(c []float64) []float64 {
+func (v vectorField) Div(c []float64) float64 {
 	if len(c) < 3 || len(c) > 3 {
 		panic("Too many or too few points coordinates given")
 	}
 	h := 0.0001
-	switch s.coordsys {
+	switch v.coordsys {
+	case "car":
+		x := c[0]
+		y := c[1]
+		z := c[2]
+
+		return ((fn(x+h, y, z, v.expressionCoord1, v.coordsys)-fn(x-h, y, z, v.expressionCoord1, v.coordsys))/(2*h) +
+			(fn(x, y+h, z, v.expressionCoord2, v.coordsys)-fn(x, y-h, z, v.expressionCoord2, v.coordsys))/(2*h) +
+			(fn(x, y, z+h, v.expressionCoord3, v.coordsys)-fn(x, y, z-h, v.expressionCoord3, v.coordsys))/(2*h))
+
+	case "cyl":
+		r := c[0]
+		phi := c[1]
+		z := c[2]
+		if r == 0 {
+			panic("r must be larger than zero")
+		} else {
+			return (fn(r, phi, z, v.expressionCoord1, v.coordsys)/r +
+				(fn(r+h, phi, z, v.expressionCoord1, v.coordsys)-fn(r-h, phi, z, v.expressionCoord1, v.coordsys))/(2*h) +
+				(fn(r, phi+h, z, v.expressionCoord2, v.coordsys)-fn(r, phi-h, z, v.expressionCoord2, v.coordsys))/(2*h*r) +
+				(fn(r, phi, z+h, v.expressionCoord3, v.coordsys)-fn(r, phi, z-h, v.expressionCoord3, v.coordsys))/(2*h))
+		}
+	case "sph":
+		r := c[0]
+		theta := c[1]
+		phi := c[2]
+		if r == 0 || math.Sin(theta) == 0 {
+			panic("r must be larger than zero and theta cannot be 0 or pi")
+		} else {
+			return ((2*fn(r, theta, phi, v.expressionCoord1, v.coordsys))/r +
+				fn(r, theta, phi, v.expressionCoord2, v.coordsys)/(r*math.Tan(theta)) +
+				(fn(r+h, theta, phi, v.expressionCoord1, v.coordsys)-fn(r-h, theta, phi, v.expressionCoord1, v.coordsys))/(2*h) +
+				(fn(r, theta+h, phi, v.expressionCoord2, v.coordsys)-fn(r, theta-h, phi, v.expressionCoord2, v.coordsys))/(2*h*r) +
+				(fn(r, theta, phi+h, v.expressionCoord3, v.coordsys)-fn(r, theta, phi-h, v.expressionCoord3, v.coordsys))/(2*h*r*math.Sin(theta)))
+		}
+	default:
+		panic("Error finding Div, coordinates system is wrong")
+	}
+}
+
+// Calculates the rotation of vectorField
+// Returns a float64 containg the calculated rotation at point c
+func (v vectorField) Rot(c []float64) []float64 {
+	if len(c) < 3 || len(c) > 3 {
+		panic("Too many or too few points coordinates given")
+	}
+	h := 0.0001
+	switch v.coordsys {
 	case "car":
 		x := c[0]
 		y := c[1]
 		z := c[2]
 
 		return []float64{
-			(fn(x+h, y, z, s.expression, s.coordsys) - fn(x-h, y, z, s.expression, s.coordsys)) / (2 * h),
-			(fn(x, y+h, z, s.expression, s.coordsys) - fn(x, y-h, z, s.expression, s.coordsys)) / (2 * h),
-			(fn(x, y, z+h, s.expression, s.coordsys) - fn(x, y, z-h, s.expression, s.coordsys)) / (2 * h)}
+			(fn(x, y+h, z, v.expressionCoord3, v.coordsys)-fn(x, y-h, z, v.expressionCoord3, v.coordsys))/(2*h) -
+				(fn(x, y, z+h, v.expressionCoord2, v.coordsys)-fn(x, y, z-h, v.expressionCoord2, v.coordsys))/(2*h),
+			(fn(x, y, z+h, v.expressionCoord1, v.coordsys)-fn(x, y, z-h, v.expressionCoord1, v.coordsys))/(2*h) -
+				(fn(x+h, y, z, v.expressionCoord3, v.coordsys)-fn(x-h, y, z, v.expressionCoord3, v.coordsys))/(2*h),
+			(fn(x+h, y, z, v.expressionCoord2, v.coordsys)-fn(x-h, y, z, v.expressionCoord2, v.coordsys))/(2*h) -
+				(fn(x, y+h, z, v.expressionCoord1, v.coordsys)-fn(x, y-h, z, v.expressionCoord1, v.coordsys))/(2*h)}
 
 	case "cyl":
 		r := c[0]
 		phi := c[1]
 		z := c[2]
-
-		return []float64{
-			(fn(r+h, phi, z, s.expression, s.coordsys) - fn(r-h, phi, z, s.expression, s.coordsys)) / (2 * h),
-			(fn(r, phi+h, z, s.expression, s.coordsys) - fn(r, phi-h, z, s.expression, s.coordsys)) / (2 * h * r),
-			(fn(r, phi, z+h, s.expression, s.coordsys) - fn(r, phi, z-h, s.expression, s.coordsys)) / (2 * h)}
-
+		if r == 0 {
+			panic("r must be larger than zero")
+		} else {
+			return []float64{
+				(fn(r, phi+h, z, v.expressionCoord3, v.coordsys)-fn(r, phi-h, z, v.expressionCoord3, v.coordsys))/(2*h*r) -
+					(fn(r, phi, z+h, v.expressionCoord2, v.coordsys)-fn(r, phi, z-h, v.expressionCoord2, v.coordsys))/(2*h),
+				(fn(r, phi, z+h, v.expressionCoord1, v.coordsys)-fn(r, phi, z-h, v.expressionCoord1, v.coordsys))/(2*h) -
+					(fn(r+h, phi, z, v.expressionCoord3, v.coordsys)-fn(r-h, phi, z, v.expressionCoord3, v.coordsys))/(2*h),
+				fn(r, phi, z, v.expressionCoord2, v.coordsys)/r +
+					(fn(r+h, phi, z, v.expressionCoord2, v.coordsys)-fn(r-h, phi, z, v.expressionCoord2, v.coordsys))/(2*h) -
+					(fn(r, phi+h, z, v.expressionCoord1, v.coordsys)-fn(r, phi-h, z, v.expressionCoord1, v.coordsys))/(2*h*r)}
+		}
 	case "sph":
 		r := c[0]
 		theta := c[1]
 		phi := c[2]
-
-		return []float64{
-			(fn(r+h, theta, phi, s.expression, s.coordsys) - fn(r-h, theta, phi, s.expression, s.coordsys)) / (2 * h),
-			(fn(r, theta+h, phi, s.expression, s.coordsys) - fn(r, theta-h, phi, s.expression, s.coordsys)) / (2 * h * r),
-			(fn(r, theta, phi+h, s.expression, s.coordsys) - fn(r, theta, phi-h, s.expression, s.coordsys)) / (2 * h * r * math.Sin(theta))}
+		if r == 0 || math.Sin(theta) == 0 {
+			panic("r must be larger than zero and theta cannot be 0 or pi")
+		} else {
+			return []float64{
+				fn(r, theta, phi, v.expressionCoord2, v.coordsys)/(r*math.Tan(theta)) +
+					(fn(r, theta+h, phi, v.expressionCoord2, v.coordsys)-fn(r, theta-h, phi, v.expressionCoord2, v.coordsys))/(2*h*r) -
+					(fn(r, theta, phi+h, v.expressionCoord2, v.coordsys)-fn(r, theta, phi-h, v.expressionCoord2, v.coordsys))/(2*h*r*math.Sin(theta)),
+				(fn(r, theta, phi+h, v.expressionCoord2, v.coordsys)-fn(r, theta, phi-h, v.expressionCoord1, v.coordsys))/(2*h*r*math.Sin(theta)) -
+					fn(r, theta, phi, v.expressionCoord3, v.coordsys)/r -
+					(fn(r+h, theta, phi, v.expressionCoord3, v.coordsys)-fn(r-h, theta, phi, v.expressionCoord3, v.coordsys))/(2*h),
+				fn(r, theta, phi, v.expressionCoord2, v.coordsys)/r +
+					(fn(r+h, theta, phi, v.expressionCoord2, v.coordsys)-fn(r-h, theta, phi, v.expressionCoord2, v.coordsys))/(2*h) -
+					(fn(r, theta+h, phi, v.expressionCoord1, v.coordsys)-fn(r, theta-h, phi, v.expressionCoord1, v.coordsys))/(2*h*r)}
+		}
+	default:
+		panic("Error finding Rot, coordinates system is wrong")
 	}
-	return []float64{}
-}
-
-func main() {
-	s := NewScalarField("-3sin(2r^3)^5+phi*theta^2", "sph")
-	fmt.Println(s)
-	fmt.Println(s.Grad([]float64{1, 1, 1}))
-	fmt.Println(s.coordsys)
-
-	// v := NewVectorField("3x^2", "5cos(y^3*z)", "sqrt(1-y^2)-5z+3")
-	// fmt.Println(v)
-
 }
